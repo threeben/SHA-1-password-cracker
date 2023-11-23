@@ -1,48 +1,36 @@
 import hashlib
 
-top_10000_passwords = []
-
-
 def crack_sha1_hash(hash, use_salts=False):
-    # Read each password from 'top-10000-passwords.txt' and store it into
-    # top_10000_passwords array
-    with open('top-10000-passwords.txt', 'r') as passwords_file:
-        Lines = passwords_file.readlines()
-        for line in Lines:
-            top_10000_passwords.append(line.strip())
+  passwords_arr = []
+  read_and_add_to_array("top-10000-passwords.txt", passwords_arr)
 
-    hashed_passwords = {}
+  if use_salts:
+    top_salts_passwords = {}
+    top_salts = []
+    read_and_add_to_array("known-salts.txt", top_salts)
+    for bsalt in top_salts:
+      for bpassword in passwords_arr:
+        prepended = hashlib.sha1(bsalt + bpassword).hexdigest()
+        appended = hashlib.sha1(bpassword + bsalt).hexdigest()
+        top_salts_passwords[prepended] = bpassword.decode("utf-8")
+        top_salts_passwords[appended] = bpassword.decode("utf-8")
+    if hash in top_salts_passwords:
+      return top_salts_passwords[hash]
 
-    # Hash each password in top_10000_passwords array,
-    # store hashed password as key and original password as value
-    # into the hashed_passwords dictionary for hash lookup
-    for password in top_10000_passwords:
-        encoded_password = password.encode()
+  passwords_dict = {}
+  for p in passwords_arr:
+    hash_line = hashlib.sha1(p).hexdigest()
+    passwords_dict[hash_line] = p.decode('utf-8')
 
-        if not use_salts:
-            hashed_password = hashlib.sha1(encoded_password).hexdigest()
-            hashed_passwords[hashed_password] = password
-            continue
+  if hash in passwords_dict:
+    return passwords_dict[hash]
+    
 
-        # If use_salts is true, read each salt from 'known-salts.txt'
-        with open('known-salts.txt', 'r') as salts_file:
-            Lines = salts_file.readlines()
+  return "PASSWORD NOT IN DATABASE"
 
-            for line in Lines:
-                salt = line.strip()
-                encoded_salt = salt.encode()
-                # Prepend and append salt to password respectively
-                encoded_passwords_with_salt = [
-                    encoded_salt + encoded_password, encoded_password + encoded_salt]
-                # Hash the prefixed/suffixed passwords and add the
-                # hashed results to the dictionary
-                for p in encoded_passwords_with_salt:
-                    hashed_password = hashlib.sha1(p).hexdigest()
-                    hashed_passwords[hashed_password] = password
-
-    # Return the original password if hash is found in
-    # the hash_passwords dictionary
-    if hash in hashed_passwords:
-        return hashed_passwords[hash]
-
-    return 'PASSWORD NOT IN DATABASE'
+def read_and_add_to_array(file_name, arr):
+  with open(file_name, "rb") as f:
+    line = f.readline().strip()
+    while line:
+      arr.append(line)
+      line = f.readline().strip()
